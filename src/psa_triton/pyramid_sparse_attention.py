@@ -1,11 +1,11 @@
 import torch
-from .kernels.attn_pooling_kernel_opt import attn_with_pooling_optimized
+from .kernels.attn_pooling_kernel import attn_with_pooling_optimized
 from .utils.gilbert3d import gilbert3d
 from torch.nn import functional as F
 from .utils.tools import timeit
 import torch.nn as nn
-from .kernels.block_sparse_attn_kernel_with_backward_9_10 import sparse_attention_factory as sparse_attention_factory_old_mask
-from .kernels.psa_kernel_opt import sparse_attention_factory as sparse_attention_factory_new_mask
+from .kernels.psa_kernel_legacy import sparse_attention_factory as psa_sparse_attention_legacy
+from .kernels.psa_kernel import sparse_attention_factory as psa_sparse_attention
 from .utils.transfer_attn_to_mask import transfer_attn_to_mask, calc_density, calc_density_newtype
 from .utils.psa_logger import PSALogger
 import time
@@ -303,9 +303,9 @@ class PyramidSparseAttention(nn.Module):
 
         # Create sparse attention function (preserve multi-version kernel support)
         if config.attn_impl == "old_mask_type":
-            self.sparse_attention_fn = sparse_attention_factory_old_mask(config.block_m, config.tile_n, config.block_n)
+            self.sparse_attention_fn = psa_sparse_attention_legacy(config.block_m, config.tile_n, config.block_n)
         elif config.attn_impl == "new_mask_type":
-            self.sparse_attention_fn = sparse_attention_factory_new_mask(config.block_m, config.tile_n, config.block_n)
+            self.sparse_attention_fn = psa_sparse_attention(config.block_m, config.tile_n, config.block_n)
 
         # Initialize logger (optional)
         self.logger = None

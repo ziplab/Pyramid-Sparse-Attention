@@ -1,12 +1,4 @@
-      
-"""
-    Original Author: Eric Lin (xihlin) (https://huggingface.co/microsoft/Phi-3-small-8k-instruct/blob/main/triton_flash_blocksparse_attn.py)
-"""
-"""
-    Modified by Yizhao Gao
-    Use binary block mask for simplicity. Need to be updated to varlen version for batched inference.
-"""
-
+"""PSA Triton Kernel"""
 
 from typing import TypeVar
 from functools import lru_cache

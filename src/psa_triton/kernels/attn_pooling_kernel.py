@@ -1,13 +1,4 @@
-"""
-Original code from Triton's official fused attention example (https://triton-lang.org/main/getting-started/tutorials/06-fused-attention.html).
-"""
-
-"""
-    Modified by Zhichen Zeng,
-    Self-attention output with 2D maxpooling attention map.
-
-    OPTIMIZED VERSION - This is a copy for optimization purposes
-"""
+"""Attention Pooling Kernel"""
 
 import torch
 import triton
