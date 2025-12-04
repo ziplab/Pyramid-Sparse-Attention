@@ -37,61 +37,61 @@ ModelName:
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
-| `type` | string | `psa` 稀疏注意力，`dense` 全注意力基线 |
-| `description` | string | 预设的描述 |
-| `use_rearrange` | bool | 启用空间 token 重排（提升局部性） |
-| `use_sim_mask` | bool | 启用基于余弦相似度的池化约束 |
-| `block_size.m` | int | Query 块大小 |
-| `block_size.n` | int | Key/Value 块大小 |
-| `block_size.tile_n` | int | K/V 处理的硬件 tile 大小 |
-| `mask_ratios` | dict | 每个金字塔层级的累积重要性阈值 |
-| `mask_mode` | string | `thresholdbound` 或 `topk`（见下文） |
-| `attn_impl` | string | 注意力实现：`new_mask_type` 或 `old_mask_type` |
-| `tile_size` | list | 重排的 3D tile 维度 `[depth, height, width]` |
-| `warmup_steps` | int | 切换到稀疏注意力前使用全注意力的初始步数 |
+| `type` | string | `psa` sparse attention，`dense` full attention |
+| `description` | string | 预设描述 |
+| `use_rearrange` | bool | 启用空间 token 重排 |
+| `use_sim_mask` | bool | 启用基于 cosine similarity 的 pooling 约束 |
+| `block_size.m` | int | Query block 大小 |
+| `block_size.n` | int | Key/Value block 大小 |
+| `block_size.tile_n` | int | K/V tile 大小 |
+| `mask_ratios` | dict | 各 pyramid level 的累积重要性阈值 |
+| `mask_mode` | string | `thresholdbound` 或 `topk` |
+| `attn_impl` | string | Attention 实现：`new_mask_type` 或 `old_mask_type` |
+| `tile_size` | list | 3D tile 维度 `[depth, height, width]` |
+| `warmup_steps` | int | 切换到 sparse attention 前使用 full attention 的步数 |
 | `rearrange_method` | string | Token 重排算法（如 `Gilbert`） |
-| `verbose` | bool | 推理时启用详细日志 |
-| `sim_thresholds` | dict | 各池化层级的余弦相似度阈值 |
+| `verbose` | bool | 启用详细日志 |
+| `sim_thresholds` | dict | 各 pooling level 的 cosine similarity 阈值 |
 
-## 理解 mask_ratios
+## mask_ratios 详解
 
-`mask_ratios` 参数控制如何根据重要性分数将 query-key block pairs 分配到不同的金字塔层级。
+`mask_ratios` 控制如何根据重要性分数将 query-key block pairs 分配到不同 pyramid level。
 
 ### thresholdbound 模式
 
-在 `thresholdbound` 模式下，`mask_ratios` 定义累积重要性分数阈值：
+定义累积重要性分数阈值：
 
 ```yaml
 mask_ratios:
-  1: [0.0, 0.4]    # 层级 1：重要性前 0-40% → 全分辨率
-  2: [0.4, 0.5]    # 层级 2：40-50% → 2 倍池化
-  4: [0.5, 0.6]    # 层级 4：50-60% → 4 倍池化
-  8: [0.6, 0.8]    # 层级 8：60-80% → 8 倍池化
-  0: [0.8, 1.0]    # 层级 0：80-100% → 跳过注意力
+  1: [0.0, 0.4]    # Level 1: 0-40% → 全分辨率
+  2: [0.4, 0.5]    # Level 2: 40-50% → 2x pooling
+  4: [0.5, 0.6]    # Level 4: 50-60% → 4x pooling
+  8: [0.6, 0.8]    # Level 8: 60-80% → 8x pooling
+  0: [0.8, 1.0]    # Level 0: 80-100% → skip
 ```
 
-键是金字塔层级：
-- **层级 1**：全分辨率 KV（最高质量）
-- **层级 2/4/8**：逐级池化的 KV（2x/4x/8x 平均池化）
-- **层级 0**：完全跳过注意力
+Pyramid level 含义：
+- **Level 1**：全分辨率 KV（最高质量）
+- **Level 2/4/8**：Pooled KV（2x/4x/8x average pooling）
+- **Level 0**：跳过 attention
 
 ### topk 模式
 
-在 `topk` 模式下，`mask_ratios` 定义各层级的固定配额（百分比）：
+定义各 level 的固定配额（百分比）：
 
 ```yaml
 mask_ratios:
-  1: [0.0, 0.1]    # 10% 的 blocks 使用全分辨率
-  2: [0.1, 0.15]   # 5% 的 blocks 使用 2 倍池化
-  4: [0.15, 0.15]  # 0% 使用 4 倍池化（跳过）
-  8: [0.15, 0.35]  # 20% 的 blocks 使用 8 倍池化
-  0: [0.35, 1.0]   # 65% 的 blocks 被跳过
+  1: [0.0, 0.1]    # 10% blocks 用全分辨率
+  2: [0.1, 0.15]   # 5% blocks 用 2x pooling
+  4: [0.15, 0.15]  # 0% 用 4x pooling（skip）
+  8: [0.15, 0.35]  # 20% blocks 用 8x pooling
+  0: [0.35, 1.0]   # 65% blocks skip
 ```
 
 ### 模式选择
 
-- **`thresholdbound`**：根据重要性分布动态调整分配。通常能获得更好的相似度指标（PSNR/SSIM/LPIPS）。
-- **`topk`**：各层级固定配额。在极高稀疏度下能产生更稳定的视觉效果。
+- **`thresholdbound`**：根据重要性分布动态分配。通常 PSNR/SSIM/LPIPS 更好。
+- **`topk`**：各 level 固定配额。极高稀疏度下视觉效果更稳定。
 
 ## 创建新预设
 
@@ -102,11 +102,11 @@ mask_ratios:
 ```yaml
 CogVideo_5b:
   attention_configs:
-    # ... 现有预设 ...
+    # ... existing presets ...
     
     my_custom_preset:
       type: psa
-      description: "我的自定义 PSA 配置"
+      description: "Custom PSA config"
       use_rearrange: true
       use_sim_mask: false
       block_size:

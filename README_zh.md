@@ -1,8 +1,8 @@
-# 金字塔稀疏注意力 (PSA)
+# Pyramid Sparse Attention (PSA)
 
 [**English**](README.md) | [**中文**](README_zh.md)
 
-**项目主页:** [http://ziplab.co/PSA](http://ziplab.co/PSA) | **论文:** [arXiv](https://arxiv.org/abs/2512.04025)
+**Website:** [http://ziplab.co/PSA](http://ziplab.co/PSA) | **Paper:** [arXiv](https://arxiv.org/abs/2512.04025)
 
 [PSA: Pyramid Sparse Attention for Efficient Video Understanding and Generation](https://arxiv.org/abs/2512.04025) 的官方 PyTorch 实现。
 
@@ -72,55 +72,55 @@ PSA 的行为通过 `configs/attention_config.yaml` 文件配置。每个模型�
 ### 配置文件结构
 
 ```yaml
-ModelName:                           # 模型名称
-  default_attention: psa_balanced    # 默认使用的预设
-  video_scale:                       # 视频维度除数
+ModelName:
+  default_attention: psa_balanced    # 默认预设
+  video_scale:
     width_divisor: 16
     height_divisor: 16
     depth_divisor: 4
-  text_length: 226                   # 文本token长度（模型相关）
+  text_length: 226                   # Text token 长度
   attention_configs:
-    preset_name:                     # 预设名称：psa_balanced, psa_4steps, baseline
-      type: psa                      # "psa" 稀疏注意力，"dense" 基线
+    preset_name:                     # 如 psa_balanced, psa_4steps, baseline
+      type: psa                      # "psa" 或 "dense"
       description: "..."
-      # PSA 特定参数见下文
+      # PSA 参数见下文
 ```
 
 ### 核心参数说明
 
 | 参数 | 说明 | 示例值 |
 |------|------|--------|
-| `type` | 注意力类型 | `psa`（稀疏）或 `dense`（密集基线） |
+| `type` | Attention 类型 | `psa` 或 `dense` |
 | `use_rearrange` | 启用空间重排 | `true` / `false` |
-| `block_size.m` | Query 块大小 | `128` |
-| `block_size.n` | Key/Value 块大小 | `32`, `128` |
-| `block_size.tile_n` | K/V 的 Tile 大小 | `32` |
-| `mask_ratios` | 每个金字塔层级的累积重要性阈值 | 见下文 |
-| `mask_mode` | 掩码生成策略 | `thresholdbound`, `topk`（见下文） |
-| `warmup_steps` | 密集注意力预热步数 | `0`, `12`, `15` |
+| `block_size.m` | Query block 大小 | `128` |
+| `block_size.n` | Key/Value block 大小 | `32`, `128` |
+| `block_size.tile_n` | K/V tile 大小 | `32` |
+| `mask_ratios` | 各 pyramid level 的累积阈值 | 见下文 |
+| `mask_mode` | Mask 生成模式 | `thresholdbound`, `topk` |
+| `warmup_steps` | Dense attention warmup 步数 | `0`, `12`, `15` |
 | `rearrange_method` | Token 重排算法 | `Gilbert` |
 
 ### mask_ratios 参数详解
 
-`mask_ratios` 定义了累积重要性分数的阈值，用于将 query-key block pairs 分配到不同的金字塔层级。以下示例使用 `thresholdbound` 掩码模式：
+`mask_ratios` 定义累积重要性分数的阈值，用于将 query-key block pairs 分配到不同 pyramid level。以下示例使用 `thresholdbound` 模式：
 
 ```yaml
 mask_ratios:
-  1: [0.0, 0.4]    # 层级1：累积分数在 [0%, 40%] 范围 → 全分辨率 KV
-  2: [0.4, 0.5]    # 层级2：累积分数在 [40%, 50%] 范围 → 2倍池化 KV
-  4: [0.5, 0.6]    # 层级4：累积分数在 [50%, 60%] 范围 → 4倍池化 KV
-  8: [0.6, 0.8]    # 层级8：累积分数在 [60%, 80%] 范围 → 8倍池化 KV
-  0: [0.8, 1.0]    # 层级0：累积分数在 [80%, 100%] 范围 → 跳过注意力
+  1: [0.0, 0.4]    # Level 1: [0%, 40%] → 全分辨率 KV
+  2: [0.4, 0.5]    # Level 2: [40%, 50%] → 2x pooling KV
+  4: [0.5, 0.6]    # Level 4: [50%, 60%] → 4x pooling KV
+  8: [0.6, 0.8]    # Level 8: [60%, 80%] → 8x pooling KV
+  0: [0.8, 1.0]    # Level 0: [80%, 100%] → 跳过 attention
 ```
 
-- **层级 1**：全分辨率注意力（最高质量，用于最重要的 KV blocks）
-- **层级 2/4/8**：逐级池化的 KV 表示（较粗层级用于次要 blocks）
-- **层级 0**：完全跳过注意力（用于最不重要的 blocks）
+- **Level 1**：全分辨率 attention（最高质量，用于最重要的 KV blocks）
+- **Level 2/4/8**：Pooled KV（较粗 level 用于次要 blocks）
+- **Level 0**：跳过 attention（用于最不重要的 blocks）
 
-### 掩码模式说明
+### Mask Mode 说明
 
-- **`thresholdbound`**：基于阈值的分配策略，使用累积重要性分数。通常能获得更好的相似度评测结果（PSNR/SSIM/LPIPS）。
-- **`topk`**：基于分位数的分配策略，每个层级固定配额。在极高稀疏度下能产生更稳定的视觉效果。
+- **`thresholdbound`**：基于阈值分配，使用累积重要性分数。通常能获得更好的 PSNR/SSIM/LPIPS。
+- **`topk`**：基于分位数分配，每个 level 固定配额。在极高稀疏度下视觉效果更稳定。
 
 ### 自定义配置
 
@@ -134,7 +134,7 @@ CogVideo_5b:
   attention_configs:
     my_custom_preset:
       type: psa
-      description: "我的自定义PSA配置"
+      description: "Custom PSA config"
       use_rearrange: true
       block_size:
         m: 128
