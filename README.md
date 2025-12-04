@@ -2,9 +2,17 @@
 
 [**English**](README.md) | [**中文**](README_zh.md)
 
-**Website:** [http://ziplab.co/PSA](http://ziplab.co/PSA)
+**Website:** [http://ziplab.co/PSA](http://ziplab.co/PSA) | **Paper:** [arXiv](https://arxiv.org/abs/2512.04025)
 
-Training-free inference acceleration for video generation models.
+Official PyTorch implementation of [PSA: Pyramid Sparse Attention for Efficient Video Understanding and Generation](https://arxiv.org/abs/2512.04025).
+
+<p align="center">
+  <img src="figures/prompt007comparison.jpg" width="100%">
+</p>
+
+<p align="center"><em>Visual comparison of sparse attention methods at similar sparsity levels (~90%). PSA maintains visual fidelity close to full attention while other methods show noticeable artifacts.</em></p>
+
+> **Note:** This release focuses on **inference-only** with **bidirectional attention**. Support for causal attention masks and backward propagation (training) is still under optimization and will be released in a future update.
 
 ## Installation
 
@@ -55,7 +63,7 @@ python examples/inference/wan21/wan21_1.3b.py \
     --use_psa --no_warmup
 ```
 
-For more inference examples, see [examples/INFERENCE.md](examples/INFERENCE.md).
+For more inference examples, see [examples/README.md](examples/README.md).
 
 ## Attention Configuration
 
@@ -87,35 +95,32 @@ ModelName:
 | `block_size.m` | Query block size | `128` |
 | `block_size.n` | Key/Value block size | `32`, `128` |
 | `block_size.tile_n` | Tile size for K/V | `32` |
-| `mask_ratios` | Sparsity ratio per pyramid level | See below |
-| `mask_mode` | Mask selection mode | `thresholdbound`, `topk` |
-| `warmup_steps` | Dense attention warmup steps | `0`, `12`, `15` |
+| `mask_ratios` | Cumulative importance thresholds per pyramid level | See below |
+| `mask_mode` | Mask generation strategy | `thresholdbound`, `topk` (see below) |
+| `warmup_steps` | Initial steps using dense attention before switching to sparse | `0`, `12`, `15` |
 | `rearrange_method` | Token rearrangement algorithm | `Gilbert` |
 
 ### Mask Ratios Explained
 
-The `mask_ratios` parameter defines sparsity levels for each pyramid level:
+The `mask_ratios` parameter defines cumulative importance score thresholds for assigning query-key block pairs to different pyramid levels. The following example uses the `thresholdbound` mask mode:
 
 ```yaml
 mask_ratios:
-  1: [0.0, 0.4]    # Level 1: timesteps 0%-40% use full attention
-  2: [0.4, 0.5]    # Level 2: timesteps 40%-50% use 2x downsampled attention
-  4: [0.5, 0.6]    # Level 4: timesteps 50%-60% use 4x downsampled attention
-  8: [0.6, 0.8]    # Level 8: timesteps 60%-80% use 8x downsampled attention
-  0: [0.8, 1.0]    # Level 0: timesteps 80%-100% skip attention (most sparse)
+  1: [0.0, 0.4]    # Level 1: cumulative score in range [0%, 40%] → full resolution KV
+  2: [0.4, 0.5]    # Level 2: cumulative score in range [40%, 50%] → 2x pooled KV
+  4: [0.5, 0.6]    # Level 4: cumulative score in range [50%, 60%] → 4x pooled KV
+  8: [0.6, 0.8]    # Level 8: cumulative score in range [60%, 80%] → 8x pooled KV
+  0: [0.8, 1.0]    # Level 0: cumulative score in range [80%, 100%] → skip attention
 ```
 
-- **Level 1**: Full resolution attention (highest quality, slowest)
-- **Level 2/4/8**: Progressively downsampled attention (faster with some quality trade-off)
-- **Level 0**: Attention skipped entirely (fastest, for final denoising steps)
+- **Level 1**: Full resolution attention (highest quality, for most important KV blocks)
+- **Level 2/4/8**: Progressively pooled KV representations (coarser levels for less important blocks)
+- **Level 0**: Attention skipped entirely (for least important blocks)
 
-### Available Presets
+### Mask Mode
 
-| Preset | Description | Use Case |
-|--------|-------------|----------|
-| `baseline` | Dense attention without sparsity | Quality baseline, slowest |
-| `psa_balanced` | Balanced speed/quality | General use (50 steps) |
-| `psa_4steps` | Optimized for 4-step LoRA | Fast inference with LoRA |
+- **`thresholdbound`**: Threshold-based assignment using cumulative importance scores. Generally achieves better similarity metrics (PSNR/SSIM/LPIPS).
+- **`topk`**: Quantile-based assignment with fixed per-level quotas. Produces more stable visual results under extremely high sparsity.
 
 ### Customizing Configuration
 
@@ -142,4 +147,20 @@ CogVideo_5b:
         0: [0.9, 1.0]
       mask_mode: thresholdbound
       warmup_steps: 10
+```
+
+## Citation
+
+If you find this work useful, please cite our paper:
+
+```bibtex
+@misc{li2025psapyramidsparseattention,
+      title={PSA: Pyramid Sparse Attention for Efficient Video Understanding and Generation}, 
+      author={Xiaolong Li and Youping Gu and Xi Lin and Weijie Wang and Bohan Zhuang},
+      year={2025},
+      eprint={2512.04025},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2512.04025}, 
+}
 ```

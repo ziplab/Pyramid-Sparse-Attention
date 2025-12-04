@@ -161,8 +161,8 @@ def main():
 
     # Model options
     parser.add_argument("--use_psa", action="store_true", help="Enable Pyramid Sparse Attention")
-    parser.add_argument("--attention_preset", type=str, default="psa_balanced",
-                       help="PSA preset name (default: psa_balanced)")
+    parser.add_argument("--attention_preset", type=str, default=None,
+                       help="PSA preset name (default: from attention_config.yaml)")
     parser.add_argument("--num_inference_steps", type=int, help="Override default inference steps")
 
     # Video options
@@ -230,7 +230,8 @@ def main():
 
     # Apply PSA if requested
     if args.use_psa:
-        print(f"\n⚡ Applying Pyramid Sparse Attention (preset: {args.attention_preset})")
+        preset_info = args.attention_preset if args.attention_preset else "default from config"
+        print(f"\n⚡ Applying Pyramid Sparse Attention (preset: {preset_info})")
         set_adaptive_sparse_attention(
             pipe,
             model_name=config["model_name"],

@@ -2,9 +2,17 @@
 
 [**English**](README.md) | [**中文**](README_zh.md)
 
-**项目主页:** [http://ziplab.co/PSA](http://ziplab.co/PSA)
+**项目主页:** [http://ziplab.co/PSA](http://ziplab.co/PSA) | **论文:** [arXiv](https://arxiv.org/abs/2512.04025)
 
-无需训练的视频生成模型推理加速方案。
+[PSA: Pyramid Sparse Attention for Efficient Video Understanding and Generation](https://arxiv.org/abs/2512.04025) 的官方 PyTorch 实现。
+
+<p align="center">
+  <img src="figures/prompt007comparison.jpg" width="100%">
+</p>
+
+<p align="center"><em>相近稀疏度（~90%）下各稀疏注意力方法的视觉对比。PSA 保持了接近全注意力的视觉质量，而其他方法则呈现明显的伪影。</em></p>
+
+> **注意：** 当前版本仅支持**推理**和**双向注意力**。因果掩码和反向传播（训练）的算子仍在优化中，将在后续版本中发布。
 
 ## 安装
 
@@ -55,7 +63,7 @@ python examples/inference/wan21/wan21_1.3b.py \
     --use_psa --no_warmup
 ```
 
-更多推理示例请参考 [examples/INFERENCE_zh.md](examples/INFERENCE_zh.md)。
+更多推理示例请参考 [examples/README_zh.md](examples/README_zh.md)。
 
 ## 注意力配置说明
 
@@ -87,35 +95,32 @@ ModelName:                           # 模型名称
 | `block_size.m` | Query 块大小 | `128` |
 | `block_size.n` | Key/Value 块大小 | `32`, `128` |
 | `block_size.tile_n` | K/V 的 Tile 大小 | `32` |
-| `mask_ratios` | 每个金字塔层级的稀疏比例 | 见下文 |
-| `mask_mode` | 掩码选择模式 | `thresholdbound`, `topk` |
+| `mask_ratios` | 每个金字塔层级的累积重要性阈值 | 见下文 |
+| `mask_mode` | 掩码生成策略 | `thresholdbound`, `topk`（见下文） |
 | `warmup_steps` | 密集注意力预热步数 | `0`, `12`, `15` |
 | `rearrange_method` | Token 重排算法 | `Gilbert` |
 
 ### mask_ratios 参数详解
 
-`mask_ratios` 定义了每个金字塔层级的稀疏程度：
+`mask_ratios` 定义了累积重要性分数的阈值，用于将 query-key block pairs 分配到不同的金字塔层级。以下示例使用 `thresholdbound` 掩码模式：
 
 ```yaml
 mask_ratios:
-  1: [0.0, 0.4]    # 层级1：时间步0%-40%使用完整注意力
-  2: [0.4, 0.5]    # 层级2：时间步40%-50%使用2倍下采样注意力
-  4: [0.5, 0.6]    # 层级4：时间步50%-60%使用4倍下采样注意力
-  8: [0.6, 0.8]    # 层级8：时间步60%-80%使用8倍下采样注意力
-  0: [0.8, 1.0]    # 层级0：时间步80%-100%跳过注意力（最稀疏）
+  1: [0.0, 0.4]    # 层级1：累积分数在 [0%, 40%] 范围 → 全分辨率 KV
+  2: [0.4, 0.5]    # 层级2：累积分数在 [40%, 50%] 范围 → 2倍池化 KV
+  4: [0.5, 0.6]    # 层级4：累积分数在 [50%, 60%] 范围 → 4倍池化 KV
+  8: [0.6, 0.8]    # 层级8：累积分数在 [60%, 80%] 范围 → 8倍池化 KV
+  0: [0.8, 1.0]    # 层级0：累积分数在 [80%, 100%] 范围 → 跳过注意力
 ```
 
-- **层级 1**：全分辨率注意力（最高质量，最慢）
-- **层级 2/4/8**：逐级下采样注意力（更快，质量略有损失）
-- **层级 0**：完全跳过注意力（最快，用于最终去噪步骤）
+- **层级 1**：全分辨率注意力（最高质量，用于最重要的 KV blocks）
+- **层级 2/4/8**：逐级池化的 KV 表示（较粗层级用于次要 blocks）
+- **层级 0**：完全跳过注意力（用于最不重要的 blocks）
 
-### 可用预设
+### 掩码模式说明
 
-| 预设 | 说明 | 使用场景 |
-|------|------|----------|
-| `baseline` | 无稀疏的密集注意力 | 质量基线，最慢 |
-| `psa_balanced` | 速度与质量平衡 | 通用场景（50步） |
-| `psa_4steps` | 针对4步LoRA优化 | 使用LoRA的快速推理 |
+- **`thresholdbound`**：基于阈值的分配策略，使用累积重要性分数。通常能获得更好的相似度评测结果（PSNR/SSIM/LPIPS）。
+- **`topk`**：基于分位数的分配策略，每个层级固定配额。在极高稀疏度下能产生更稳定的视觉效果。
 
 ### 自定义配置
 
@@ -142,4 +147,20 @@ CogVideo_5b:
         0: [0.9, 1.0]
       mask_mode: thresholdbound
       warmup_steps: 10
+```
+
+## 引用
+
+如果本项目对你有帮助，请引用我们的论文：
+
+```bibtex
+@misc{li2025psapyramidsparseattention,
+      title={PSA: Pyramid Sparse Attention for Efficient Video Understanding and Generation}, 
+      author={Xiaolong Li and Youping Gu and Xi Lin and Weijie Wang and Bohan Zhuang},
+      year={2025},
+      eprint={2512.04025},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2512.04025}, 
+}
 ```

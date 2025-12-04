@@ -71,6 +71,31 @@ Wan2.1_1.3b:
         x2: 0.7
         x4: 0.65
         x8: 0.6
+    psa_topk:
+      type: psa
+      description: "topk PSA configuration for Wan2.1 1.3B."
+      use_rearrange: true
+      use_sim_mask: false
+      block_size:
+        m: 128
+        n: 32
+        tile_n: 32
+      mask_ratios:
+        1: [0.00, 0.05]
+        2: [0.05, 0.1]
+        4: [0.1, 0.15]
+        8: [0.15, 0.25]
+        0: [0.25, 1.00]
+      mask_mode: topk
+      attn_impl: new_mask_type
+      tile_size: [2, 8, 8]
+      warmup_steps: 15
+      rearrange_method: Gilbert
+      verbose: true
+      sim_thresholds:
+        x2: 0.7
+        x4: 0.65
+        x8: 0.6
 
 Wan2.2_A14B:
   default_attention: psa_balanced

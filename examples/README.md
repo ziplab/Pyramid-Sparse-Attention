@@ -1,6 +1,6 @@
 # Inference Examples
 
-[**English**](INFERENCE.md) | [**中文**](INFERENCE_zh.md)
+[**English**](README.md) | [**中文**](README_zh.md)
 
 This document provides detailed inference commands for all supported models.
 
@@ -15,7 +15,14 @@ python examples/inference/cogvideo/cogvideo_5b.py \
     --use_psa
 ```
 
-### CogVideoX-5B LoRA (4 steps)
+### CogVideoX-5B LoRA (4-step Fast Inference with PSA + Distillation)
+
+This configuration combines **PSA sparse attention** with **step distillation (TDM)** to achieve maximum inference speedup. By integrating PSA into the student model during the distillation training phase, we achieve:
+
+- **VBench score of 0.826**, surpassing both the 50-step full-attention baseline (0.819) and the 4-step distillation-only baseline (0.818)
+- Operating at **85% sparsity** without any quality loss
+
+This demonstrates that PSA is a highly compatible plug-and-play module that compounds effectively with distillation techniques.
 
 ```bash
 python examples/inference/cogvideo/cogvideo_5b.py \
@@ -81,7 +88,7 @@ python examples/inference/cogvideo/cogvideo_5b.py \
 | `--num_inference_steps` | Override inference steps | Model default |
 | `--output_dir` | Output directory | `outputs` |
 | `--seed` | Random seed | `42` |
-| `--no_warmup` | Skip warmup inference | `False` |
+| `--no_warmup` | Skip GPU warmup inference (first run to warm up GPU) | `False` |
 | `--verbose` | Enable verbose PSA logging | `False` |
 
 ### CogVideoX-specific Options

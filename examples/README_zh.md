@@ -1,6 +1,6 @@
 # 推理示例
 
-[**English**](INFERENCE.md) | [**中文**](INFERENCE_zh.md)
+[**English**](README.md) | [**中文**](README_zh.md)
 
 本文档提供所有支持模型的详细推理命令。
 
@@ -15,7 +15,14 @@ python examples/inference/cogvideo/cogvideo_5b.py \
     --use_psa
 ```
 
-### CogVideoX-5B LoRA (4步快速推理)
+### CogVideoX-5B LoRA (PSA + 蒸馏 4步快速推理)
+
+此配置将 **PSA 稀疏注意力** 与 **步数蒸馏 (TDM)** 相结合，实现最大化推理加速。通过在蒸馏训练阶段将 PSA 集成到学生模型中，我们实现了：
+
+- **VBench 得分 0.826**，超越 50 步全注意力基线（0.819）和 4 步纯蒸馏基线（0.818）
+- 在 **85% 稀疏度** 下运行，且无质量损失
+
+这证明了 PSA 是一个高度兼容的即插即用模块，可以与蒸馏技术有效结合以最大化推理效率。
 
 ```bash
 python examples/inference/cogvideo/cogvideo_5b.py \
@@ -81,7 +88,7 @@ python examples/inference/cogvideo/cogvideo_5b.py \
 | `--num_inference_steps` | 覆盖推理步数 | 模型默认值 |
 | `--output_dir` | 输出目录 | `outputs` |
 | `--seed` | 随机种子 | `42` |
-| `--no_warmup` | 跳过预热推理 | `False` |
+| `--no_warmup` | 跳过 GPU 预热推理（首次运行预热 GPU） | `False` |
 | `--verbose` | 启用详细 PSA 日志 | `False` |
 
 ### CogVideoX 专用参数
