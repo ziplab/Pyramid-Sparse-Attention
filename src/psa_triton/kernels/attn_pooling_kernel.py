@@ -152,7 +152,8 @@ def _attn_fwd_optimized(
     stride_pon,  #
     Z,
     H,
-    N_CTX,  #
+    N_CTX_Q,  # Q sequence length
+    N_CTX_K,  # K sequence length
     n_rep,  #
     HEAD_DIM: tl.constexpr,  #
     BLOCK_M: tl.constexpr,  #
@@ -177,7 +178,7 @@ def _attn_fwd_optimized(
     # block pointers
     Q_block_ptr = tl.make_block_ptr(
         base=Q + q_offset,
-        shape=(N_CTX, HEAD_DIM),
+        shape=(N_CTX_Q, HEAD_DIM),
         strides=(stride_qm, stride_qk),
         offsets=(start_m * TILE_M, 0),
         block_shape=(TILE_M, HEAD_DIM),
@@ -186,24 +187,16 @@ def _attn_fwd_optimized(
 
     K_block_ptr = tl.make_block_ptr(
         base=K + k_offset,
-        shape=(HEAD_DIM, N_CTX),
+        shape=(HEAD_DIM, N_CTX_K),
         strides=(stride_kk, stride_kn),
         offsets=(0, 0),
         block_shape=(HEAD_DIM, TILE_N),
         order=(0, 1),
     )
-    O_block_ptr = tl.make_block_ptr(
-        base=Out + q_offset,
-        shape=(N_CTX, HEAD_DIM),
-        strides=(stride_om, stride_on),
-        offsets=(start_m * TILE_M, 0),
-        block_shape=(TILE_M, HEAD_DIM),
-        order=(1, 0),
-    )
 
     R_block_ptr = tl.make_block_ptr(
         base=R + r_offset,
-        shape=(N_CTX, N_DOWNSAMPLE),
+        shape=(N_CTX_Q, N_DOWNSAMPLE),
         strides=(stride_rm, stride_rn),
         offsets=(start_m * TILE_M, 0),
         block_shape=(TILE_M, TILE_N // BLOCK_N),
@@ -252,7 +245,7 @@ def _attn_fwd_optimized(
             4 - STAGE,
             offs_m,
             offs_n,
-            N_CTX,
+            N_CTX_K,
             V.dtype.element_ty == tl.float8e5,  #
         )
     # stage 2: on-band
@@ -278,13 +271,13 @@ def _attn_fwd_optimized(
             2,
             offs_m,
             offs_n,
-            N_CTX,
+            N_CTX_K,
             V.dtype.element_ty == tl.float8e5,  #
         )
     # epilogue
     m_i += tl.math.log2(l_i)
     acc = acc / l_i[:, None]
-    m_ptrs = M + off_hz * N_CTX + offs_m
+    m_ptrs = M + off_hz * N_CTX_Q + offs_m
     tl.store(m_ptrs, m_i)
     # tl.store(O_block_ptr, acc.to(Out.type.element_ty))
 
@@ -363,8 +356,10 @@ class _attention_pooling_optimized(torch.autograd.Function):
         n_rep = NUM_HEADS_Q // NUM_HEADS_K
         o = torch.empty_like(q)
         # BLOCK_N = block_size_n
+        # m_d: number of downsampled blocks along Q dimension
+        # n_d: number of downsampled blocks along K dimension
         m_d = triton.cdiv(q.shape[2], block_size_m)
-        n_d = triton.cdiv(q.shape[2], block_size_n)
+        n_d = triton.cdiv(k.shape[2], block_size_n)  # Use k.shape[2] for K sequence length
         R, Po = _attention_pooling_optimized._get_buffers(q, m_d, n_d)
         stage = 3 if causal else 1
         extra_kern_args = {}
@@ -416,7 +411,8 @@ class _attention_pooling_optimized(torch.autograd.Function):
             Po.stride(3),  #
             q.shape[0],
             q.shape[1],  #
-            N_CTX=q.shape[2],  #
+            N_CTX_Q=q.shape[2],  # Q sequence length
+            N_CTX_K=k.shape[2],  # K sequence length
             n_rep=n_rep,  #
             HEAD_DIM=HEAD_DIM_K,  #
             STAGE=stage,  #
