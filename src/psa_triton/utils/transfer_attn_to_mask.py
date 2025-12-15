@@ -8,7 +8,7 @@ def transfer_attn_to_mask(
     mask_ratios: Optional[Dict[int, Tuple[float, float]]] = None,
     text_length: int = 226,
     mode: str = "topk",
-    min_full_attn_ratio: float = 0.08,
+    min_full_attn_ratio: float = 0.06,
     blocksize=32,
     compute_tile=32
 ) -> torch.Tensor:

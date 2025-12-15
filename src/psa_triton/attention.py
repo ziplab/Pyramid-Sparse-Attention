@@ -28,6 +28,8 @@ from typing import Dict, Tuple, Optional
 
 from .kernels.attn_pooling_kernel import attn_with_pooling_optimized
 from .kernels.psa_kernel import sparse_attention_factory as psa_sparse_attention
+from .kernels.psa_kernel_legacy import sparse_attention_factory as psa_sparse_attention_legacy
+from .kernels import calc_k_similarity_triton as _calc_k_similarity_triton, _USE_TRITON_KSIM
 from .utils.transfer_attn_to_mask import transfer_attn_to_mask
 
 
@@ -35,14 +37,14 @@ from .utils.transfer_attn_to_mask import transfer_attn_to_mask
 class PSAConfig:
     """
     Configuration for PSA Attention.
-    
+
     All parameters have sensible defaults for ~85% sparsity with good quality.
     """
     # Block size configuration
     block_m: int = 128          # Query block size
-    block_n: int = 64           # Key/Value block size  
+    block_n: int = 64           # Key/Value block size (new_mask_type: 128/64/32, old_mask_type: fixed 128)
     tile_n: int = 32            # Tile size for K/V processing
-    
+
     # Mask ratio configuration - controls sparsity distribution
     # Key: pyramid level (1=full, 2/4/8=pooled, 0=skip)
     # Value: (lower_bound, upper_bound) cumulative ratio
@@ -53,11 +55,12 @@ class PSAConfig:
         8: (0.15, 0.35),  # 20% - 8x pooled KV
         0: (0.35, 1.0),   # 65% - Skip attention
     })
-    
+
     # Mask generation mode: 'topk' (fixed quota) or 'thresholdbound' (dynamic)
     mask_mode: str = 'topk'
-    
+
     # Similarity-based pooling constraint (adaptive pooling decisions)
+    # Note: only works with attn_impl='old_mask_type'
     use_sim_mask: bool = False
     sim_2x_threshold: float = 0.0   # 2x pooling threshold
     sim_4x_threshold: float = 0.0   # 4x pooling threshold
@@ -67,9 +70,37 @@ class PSAConfig:
     rearrange_method: str = None  # 'Gilbert', 'STA', 'SemanticAware', 'Hybrid'
 
     # Kernel implementation - selects mask format
-    # "new_mask_type": uses separator-based mask format (default, more efficient)
+    # "new_mask_type": uses separator-based mask format (default, more efficient, block_n: 128/64/32)
     # "old_mask_type": uses legacy mask format (required for use_sim_mask=True)
     attn_impl: str = "new_mask_type"
+
+    def __post_init__(self):
+        """Validate configuration and check compatibility."""
+        # Compatibility check: new_mask_type does not support use_sim_mask
+        if self.attn_impl == "new_mask_type" and self.use_sim_mask:
+            raise ValueError(
+                "Incompatible configuration: 'new_mask_type' does not support 'use_sim_mask=True'.\n"
+                "Please choose one of the following options:\n"
+                "  1. Set 'use_sim_mask=False' to disable similarity mask\n"
+                "  2. Use 'attn_impl=\"old_mask_type\"' with block_size config (m=128, n=128, tile_n=32)"
+            )
+
+        # Validate block sizes for old_mask_type
+        if self.attn_impl == "old_mask_type":
+            if self.block_m != 128 or self.block_n != 128:
+                raise ValueError(
+                    f"attn_impl='old_mask_type' only supports block_m=128 and block_n=128.\n"
+                    f"Got block_m={self.block_m}, block_n={self.block_n}.\n"
+                    f"Use attn_impl='new_mask_type' for flexible block sizes (128/64/32)."
+                )
+
+        # Validate block_n for new_mask_type
+        if self.attn_impl == "new_mask_type":
+            if self.block_n not in [128, 64, 32]:
+                raise ValueError(
+                    f"attn_impl='new_mask_type' only supports block_n in [128, 64, 32].\n"
+                    f"Got block_n={self.block_n}."
+                )
 
 
 def _pad_to_multiple(x: torch.Tensor, multiple: int) -> torch.Tensor:
@@ -106,13 +137,13 @@ def _random_sample_tokens(x: torch.Tensor, block_size: int, sample_num: int) -> 
     return sampled.view(B, H, num_blocks * sample_num, D)
 
 
-def _calc_k_similarity(k: torch.Tensor, blocksize: int, config: PSAConfig) -> torch.Tensor:
-    """Calculate similarity-based pooling constraints for K blocks."""
+def _calc_k_similarity_pytorch(k: torch.Tensor, blocksize: int, config: PSAConfig) -> torch.Tensor:
+    """Calculate similarity-based pooling constraints for K blocks (PyTorch fallback)."""
     k_chunked_num = k.shape[-2] // blocksize
     k_chunked = k[:, :, :k_chunked_num * blocksize, :].reshape(
         k.shape[0], k.shape[1], k_chunked_num, blocksize, k.shape[-1]
     )
-    
+
     # Cosine similarity between adjacent tokens
     similarity_2 = F.cosine_similarity(
         k_chunked[..., ::2, :], k_chunked[..., 1::2, :], dim=-1
@@ -123,14 +154,25 @@ def _calc_k_similarity(k: torch.Tensor, blocksize: int, config: PSAConfig) -> to
     similarity_8 = F.cosine_similarity(
         k_chunked[..., 0::8, :], k_chunked[..., 7::8, :], dim=-1
     ).mean(dim=-1)
-    
+
     # Build mask based on thresholds
     sim_2_mask = 2 * (similarity_2 > config.sim_2x_threshold)
     sim_4_mask = 4 * (similarity_4 > config.sim_4x_threshold)
     sim_8_mask = 8 * (similarity_8 > config.sim_8x_threshold)
     one_tensor = torch.ones_like(sim_2_mask)
-    
+
     return torch.maximum(one_tensor, torch.maximum(sim_2_mask, torch.maximum(sim_4_mask, sim_8_mask)))
+
+
+def _calc_k_similarity(k: torch.Tensor, blocksize: int, config: PSAConfig) -> torch.Tensor:
+    """
+    Calculate similarity-based pooling constraints for K blocks.
+    Uses Triton kernel if available, otherwise falls back to PyTorch.
+    """
+    if _USE_TRITON_KSIM and k.is_cuda:
+        return _calc_k_similarity_triton(k, blocksize, config)
+    else:
+        return _calc_k_similarity_pytorch(k, blocksize, config)
 
 
 def _compute_attention_pooling(
@@ -184,40 +226,47 @@ def _compute_attention_pooling(
 class PSAAttention(nn.Module):
     """
     Plug-and-play Pyramid Sparse Attention.
-    
+
     Drop-in replacement for standard attention - just pass q, k, v.
-    
+
     Example:
         psa = PSAAttention()
         out = psa(q, k, v)  # q, k, v: [B, H, L, D]
     """
-    
+
     def __init__(self, config: PSAConfig = None):
         """
         Initialize PSA Attention.
-        
+
         Args:
             config: PSAConfig object. If None, uses default config (~85% sparsity).
         """
         super().__init__()
         self.config = config if config is not None else PSAConfig()
-        
-        # Create sparse attention kernel
-        self.sparse_attention_fn = psa_sparse_attention(
-            self.config.block_m, 
-            self.config.tile_n, 
-            self.config.block_n
-        )
+
+        # Create sparse attention kernel based on attn_impl
+        if self.config.attn_impl == "old_mask_type":
+            self.sparse_attention_fn = psa_sparse_attention_legacy(
+                self.config.block_m,
+                self.config.tile_n,
+                self.config.block_n
+            )
+        else:  # new_mask_type
+            self.sparse_attention_fn = psa_sparse_attention(
+                self.config.block_m,
+                self.config.tile_n,
+                self.config.block_n
+            )
     
     def forward(self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
         """
         Compute pyramid sparse attention.
-        
+
         Args:
             q: Query tensor [B, H, L, D]
             k: Key tensor [B, H, L, D]
             v: Value tensor [B, H, L, D]
-        
+
         Returns:
             Output tensor [B, H, L, D]
         """
@@ -243,38 +292,21 @@ class PSAAttention(nn.Module):
                 compute_tile=config.tile_n
             )
 
-            # Validate old_mask_type constraints
-            if config.attn_impl == "old_mask_type":
-                if config.block_m != 128 or config.block_n != 128:
-                    raise ValueError(
-                        f"attn_impl='old_mask_type' only supports block_m=128 and block_n=128. "
-                        f"Got block_m={config.block_m}, block_n={config.block_n}. "
-                        f"Use attn_impl='new_mask_type' for flexible block sizes."
-                    )
-
-            # Apply similarity constraint if enabled
-            # Note: sim_mask is only compatible with old_mask_type (topk/thresholdbound),
-            # not with new_mask_type which adds separator positions to the mask dimension.
+            # Apply similarity constraint if enabled (only for old_mask_type)
             if config.use_sim_mask and sim_mask is not None:
-                if config.attn_impl == "new_mask_type":
-                    raise ValueError(
-                        f"use_sim_mask=True is not compatible with attn_impl='new_mask_type'. "
-                        f"Similarity-based pooling constraint only works with attn_impl='old_mask_type'. "
-                        f"Please set attn_impl='old_mask_type' in PSAConfig to use use_sim_mask."
-                    )
                 if sim_mask.dtype != mask.dtype:
                     sim_mask = sim_mask.to(mask.dtype)
                 mask = torch.min(sim_mask, mask)
-        
+
         # Compute sparse attention
         out = self.sparse_attention_fn(
-            q.contiguous(), 
-            k.contiguous(), 
-            v.contiguous(), 
-            mask, 
+            q.contiguous(),
+            k.contiguous(),
+            v.contiguous(),
+            mask,
             None
         )
-        
+
         return out
 
 

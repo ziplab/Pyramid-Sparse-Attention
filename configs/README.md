@@ -93,6 +93,45 @@ mask_ratios:
 - **`thresholdbound`**: Dynamically adjusts allocation based on importance distribution. Generally achieves better similarity metrics (PSNR/SSIM/LPIPS).
 - **`topk`**: Fixed per-level quotas. Produces more stable visual results under extremely high sparsity.
 
+## attn_impl Selection
+
+PSA provides two attention kernel implementations, each with different characteristics:
+
+| Feature | `new_mask_type` | `old_mask_type` |
+|---------|-----------------|-----------------|
+| K block size (n) | Configurable: 128 / 64 / 32 | Fixed: 128 |
+| use_sim_mask | Not supported | Supported |
+| Causal mask | Not supported | Supported |
+| Performance | Better | Slightly lower |
+
+**Recommendation**: Use `new_mask_type` (default) for most scenarios. Use `old_mask_type` when you need sim_mask or causal masking.
+
+## Compatibility Notes
+
+> **Important**: `attn_impl: new_mask_type` is currently incompatible with `use_sim_mask: true`.
+
+If both options are enabled, an error will be raised. Choose one of the following solutions:
+
+1. **Use `new_mask_type`** (recommended): Set `use_sim_mask: false`
+   ```yaml
+   attn_impl: new_mask_type
+   use_sim_mask: false
+   block_size:
+     m: 128
+     n: 64      # Options: 128 / 64 / 32
+     tile_n: 32
+   ```
+
+2. **Use `old_mask_type` + `use_sim_mask`**: Requires fixed block_size
+   ```yaml
+   attn_impl: old_mask_type
+   use_sim_mask: true
+   block_size:
+     m: 128
+     n: 128    # Must be 128
+     tile_n: 32
+   ```
+
 ## Creating a New Preset
 
 1. Open `configs/attention_config.yaml`

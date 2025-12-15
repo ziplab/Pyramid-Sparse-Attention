@@ -35,10 +35,10 @@ setup(
     ],
     python_requires=">=3.11",
     install_requires=[
-        "torch>=2.9.0",
+        "torch>=2.6.0",
         "triton>=3.5.0",
-        "transformers>=4.56.0",
-        "diffusers>=0.35.2",
+        "transformers==4.56.0",
+        "diffusers==0.35.2",
         "einops>=0.6.0",
         "numpy>=1.24.0",
         "pyyaml>=6.0",

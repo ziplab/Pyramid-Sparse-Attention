@@ -16,6 +16,14 @@ from .utils.rearranger import GilbertRearranger, SemanticAwareRearranger, STARea
 import math
 import os
 
+# Import triton version of calc_k_similarity if available
+from .kernels import calc_k_similarity_triton as _calc_k_similarity_triton, _USE_TRITON_KSIM
+from .kernels import calc_k_similarity_pytorch as _calc_k_similarity_pytorch
+if _USE_TRITON_KSIM:
+    print("[PSA] Using Triton kernel for calc_k_similarity")
+else:
+    print("[PSA] Triton kernel for calc_k_similarity not available, using PyTorch fallback")
+
 
 @dataclass
 class AttentionConfig:
@@ -64,46 +72,34 @@ class AttentionConfig:
                 8: (0.25, 0.5),    # 25%-50% - 8x pooling
                 0: (0.5, 1.0)      # 50%-100% - Skip
             }
+
+        # Compatibility check: new_mask_type does not support use_sim_mask yet
+        if self.attn_impl == "new_mask_type" and self.use_sim_mask:
+            raise ValueError(
+                "Incompatible configuration: 'new_mask_type' does not support 'use_sim_mask=True'.\n"
+                "Please choose one of the following options:\n"
+                "  1. Set 'use_sim_mask: false' to disable similarity mask\n"
+                "  2. Use 'attn_impl: old_mask_type' with block_size config (m=128, n=128, tile_n=32)"
+            )
+
+
 def calc_k_similarity(k, blocksize, config):
     """
-    Calculate the similarity of k within blocks
+    Calculate the similarity of k within blocks.
+    Uses Triton kernel if available, otherwise falls back to PyTorch.
 
     Args:
         k: [B, H, L, D] - Key tensor
-
-        blocksize: int - Block size
+        blocksize: int - Block size(k)
         config: AttentionConfig - Configuration containing similarity thresholds
 
     Returns:
-        similarity: [B, H, k_chunked_num, blocksize//2] - Similarity of tokens at even and odd positions
+        similarity: [B, H, k_chunked_num] - Similarity mask with values in {1, 2, 4, 8}
     """
-    k_chunked_num = k.shape[-2] // blocksize
-    # Reshape to [B, H, k_chunked_num, blocksize, D]
-    k_chunked = k[:, :, :k_chunked_num*blocksize, :].reshape(
-        k.shape[0], k.shape[1], k_chunked_num, blocksize, k.shape[-1]
-    )
-    # Separate tokens at even and odd positions
-    k_chunked_1 = k_chunked[..., ::2, :]   # [B, H, k_chunked_num, blocksize//2, D]
-    k_chunked_2 = k_chunked[..., 1::2, :]  # [B, H, k_chunked_num, blocksize//2, D]
-    # Compute cosine similarity on feature dimension (dim=-1)
-    # cosine_similarity normalizes internally, no manual norm needed
-    similarity_2 = F.cosine_similarity(k_chunked_1, k_chunked_2, dim=-1).mean(dim=-1)  # [B, H, k_chunked_num]
-    similarity_4 = F.cosine_similarity(
-        k_chunked[...,0::4, :],
-        k_chunked[...,3::4, :],
-        dim=-1
-    ).mean(dim=-1)  # [B, H, k_chunked_num]
-    similarity_8 = F.cosine_similarity(
-        k_chunked[...,0::8, :],
-        k_chunked[...,7::8, :],
-        dim=-1
-    ).mean(dim=-1)  # [B, H, k_chunked_num]
-    sim_2_mask = 2*(similarity_2 > config.sim_2x_threshold)
-    sim_4_mask = 4*(similarity_4 > config.sim_4x_threshold)
-    sim_8_mask = 8*(similarity_8 > config.sim_8x_threshold)
-    one_tensor = torch.ones_like(sim_2_mask)
-    sim_mask = torch.maximum(one_tensor, torch.maximum(sim_2_mask, torch.maximum(sim_4_mask, sim_8_mask)))
-    return sim_mask
+    if _USE_TRITON_KSIM and k.is_cuda:
+        return _calc_k_similarity_triton(k, blocksize, config)
+    else:
+        return _calc_k_similarity_pytorch(k, blocksize, config)
 def pad_to_multiple(x, multiple):
     """
     Pad x on the sequence dimension (dim=2) to make its length a multiple of multiple.

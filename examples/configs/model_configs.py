@@ -6,7 +6,12 @@ These configurations follow the official model settings from:
 - SSIM_PSNR_EXP/evaluation_system/scripts/multi_gpu_evaluation.py
 """
 
+from pathlib import Path
 from typing import Dict, Any
+
+# Project root directory (relative path support)
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+MODELS_DIR = PROJECT_ROOT / "models"
 
 
 MODEL_CONFIGS: Dict[str, Dict[str, Any]] = {
@@ -178,6 +183,12 @@ MODEL_CONFIGS: Dict[str, Dict[str, Any]] = {
 }
 
 
+def get_models_dir() -> Path:
+    """Get the models directory path, creating it if needed."""
+    MODELS_DIR.mkdir(parents=True, exist_ok=True)
+    return MODELS_DIR
+
+
 def get_model_config(model_key: str) -> Dict[str, Any]:
     """Get model configuration by key.
 
@@ -185,7 +196,7 @@ def get_model_config(model_key: str) -> Dict[str, Any]:
         model_key: Model identifier (e.g., "cogvideo_5b", "wan21_14b")
 
     Returns:
-        Model configuration dictionary
+        Model configuration dictionary with cache_dir included
 
     Raises:
         ValueError: If model_key is not found
@@ -195,7 +206,9 @@ def get_model_config(model_key: str) -> Dict[str, Any]:
         raise ValueError(
             f"Unknown model: {model_key}. Available models: {available}"
         )
-    return MODEL_CONFIGS[model_key].copy()
+    config = MODEL_CONFIGS[model_key].copy()
+    config["cache_dir"] = str(get_models_dir())
+    return config
 
 
 def list_available_models() -> list:

@@ -46,11 +46,16 @@ def setup_pipeline(config: dict, device: str = "cuda"):
     print(f"Loading Wan2.1-1.3B Pipeline")
     print(f"{'='*70}")
 
+    cache_dir = config.get("cache_dir")
+    if cache_dir:
+        print(f"📂 Using cache directory: {cache_dir}")
+
     # Setup VAE (float32 for better quality)
     vae = AutoencoderKLWan.from_pretrained(
         config["model_id"],
         subfolder="vae",
-        torch_dtype=torch.float32
+        torch_dtype=torch.float32,
+        cache_dir=cache_dir
     )
     print("✅ VAE loaded (float32)")
 
@@ -69,7 +74,8 @@ def setup_pipeline(config: dict, device: str = "cuda"):
     pipe = WanPipeline.from_pretrained(
         config["model_id"],
         vae=vae,
-        torch_dtype=dtype
+        torch_dtype=dtype,
+        cache_dir=cache_dir
     )
     pipe.scheduler = scheduler
     pipe.to(device)

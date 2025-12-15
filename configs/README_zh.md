@@ -93,6 +93,45 @@ mask_ratios:
 - **`thresholdbound`**：根据重要性分布动态分配。通常 PSNR/SSIM/LPIPS 更好。
 - **`topk`**：各 level 固定配额。极高稀疏度下视觉效果更稳定。
 
+## attn_impl 实现选择
+
+PSA 提供两种 attention kernel 实现，各有特点：
+
+| 特性 | `new_mask_type` | `old_mask_type` |
+|------|-----------------|-----------------|
+| K block size (n) | 可选 128 / 64 / 32 | 固定 128 |
+| use_sim_mask | 不支持 | 支持 |
+| 因果掩码 (causal) | 不支持 | 支持 |
+| 性能 | 更优 | 略低 |
+
+**推荐**：大多数场景使用 `new_mask_type`（默认），需要 sim_mask 或因果掩码时使用 `old_mask_type`。
+
+## 兼容性注意事项
+
+> **重要**：`attn_impl: new_mask_type` 与 `use_sim_mask: true` 目前不兼容。
+
+如果同时启用这两个选项，程序会抛出错误。请选择以下方案之一：
+
+1. **使用 `new_mask_type`**（推荐）：设置 `use_sim_mask: false`
+   ```yaml
+   attn_impl: new_mask_type
+   use_sim_mask: false
+   block_size:
+     m: 128
+     n: 64      # 可选 128 / 64 / 32
+     tile_n: 32
+   ```
+
+2. **使用 `old_mask_type` + `use_sim_mask`**：需配合固定 block_size
+   ```yaml
+   attn_impl: old_mask_type
+   use_sim_mask: true
+   block_size:
+     m: 128
+     n: 128    # 必须为 128
+     tile_n: 32
+   ```
+
 ## 创建新预设
 
 1. 打开 `configs/attention_config.yaml`

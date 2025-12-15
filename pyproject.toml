@@ -7,7 +7,7 @@ name = "psa-triton"
 version = "0.1.0"
 description = "Training-free inference acceleration for video generation models using Pyramid Sparse Attention"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 license = {text = "Apache-2.0"}
 authors = [
     {name = "PSA Team", email = "your.email@example.com"}
@@ -18,42 +18,47 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
 
 dependencies = [
     # Core dependencies
-    "torch>=2.1.0",
-    "triton>=3.2.0",
-    "diffusers>=0.30.0",
-    "transformers>=4.40.0",
+    "torch>=2.6.0",
+    "triton>=3.5.1",
+    "transformers==4.56.0",
+    "diffusers==0.35.2",
 
     # Data manipulation
-    "numpy>=1.24.0,<2.0",
+    "numpy>=2.3.5",
     "einops>=0.6.0",
-    "pyyaml>=6.0",
+    "pyyaml>=6.0.3",
 
     # Imaging and video
-    "Pillow>=9.0.0",
+    "Pillow>=12.0.0",
     "opencv-python>=4.8.0",
+    "av>=16.0.1",
 
     # HuggingFace ecosystem
-    "huggingface-hub>=0.20.0",
+    "huggingface-hub>=0.36.0",
     "hf-transfer>=0.1.4",
-    "safetensors>=0.4.0",
-    "accelerate>=0.25.0",
+    "safetensors>=0.7.0",
+    "accelerate>=1.12.0",
 
     # Utilities
-    "filelock>=3.0.0",
-    "requests>=2.31.0",
-    "regex>=2023.0.0",
-    "tqdm>=4.65.0",
+    "filelock>=3.20.0",
+    "requests>=2.32.5",
+    "regex>=2025.11.3",
+    "tqdm>=4.67.1",
     "ftfy>=6.1.0",
 
     # Deep learning utilities
     "timm>=0.9.0",
-    "torchvision>=0.19.0",
+    "torchvision>=0.24.1",
+
+    # Qwen-VL support
+    "qwen-vl-utils>=0.0.14",
 ]
 
 [project.optional-dependencies]
@@ -63,6 +68,7 @@ dev = [
     "black>=22.0.0",
     "flake8>=4.0.0",
     "mypy>=1.0.0",
+    "ruff",
 ]
 
 all = [
@@ -73,9 +79,6 @@ all = [
     "torchmetrics>=1.0.0",
     "deepspeed>=0.12.0",
     "peft>=0.7.0",
-    # GPU-accelerated KMeans (optional, for semantic rearrangement features)
-    # Note: cuvs-cu12 requires compatible NVIDIA CUDA libraries
-    # "cuvs-cu12>=25.10.0",  # Uncomment if needed
 ]
 
 [project.urls]

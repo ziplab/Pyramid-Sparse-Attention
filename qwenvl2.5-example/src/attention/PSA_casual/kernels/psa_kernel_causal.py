@@ -933,31 +933,11 @@ def sparse_attention_factory(BLOCK_M=128, BLOCK_N=32, POOLING_BLOCK_N=128, causa
     Factory function to create sparse attention with specific configuration.
 
     Args:
-        BLOCK_M: Query block size (must be 128)
-        BLOCK_N: Key block size for computation tiles (must be 32)
-        POOLING_BLOCK_N: Logical pooling block size (must be 128)
+        BLOCK_M: Query block size
+        BLOCK_N: Key block size for computation tiles
+        POOLING_BLOCK_N: Logical pooling block size
         causal: Whether to use causal masking
     """
-    # Validate block size parameters - current version only supports fixed values
-    if BLOCK_M != 128:
-        raise ValueError(
-            f"BLOCK_M must be 128, got {BLOCK_M}. "
-            "Current version only supports BLOCK_M=128, BLOCK_N=32, POOLING_BLOCK_N=128. "
-            "For more flexible configurations, please use psa_triton/kernels/psa_kernel.py"
-        )
-    if BLOCK_N != 32:
-        raise ValueError(
-            f"BLOCK_N must be 32, got {BLOCK_N}. "
-            "Current version only supports BLOCK_M=128, BLOCK_N=32, POOLING_BLOCK_N=128. "
-            "For more flexible configurations, please use psa_triton/kernels/psa_kernel.py"
-        )
-    if POOLING_BLOCK_N != 128:
-        raise ValueError(
-            f"POOLING_BLOCK_N must be 128, got {POOLING_BLOCK_N}. "
-            "Current version only supports BLOCK_M=128, BLOCK_N=32, POOLING_BLOCK_N=128. "
-            "For more flexible configurations, please use psa_triton/kernels/psa_kernel.py"
-        )
-
     class _sparse_attention_config(_sparse_attention):
         @staticmethod
         def forward(ctx, q, k, v, block_sparse_dense, sm_scale=None):
