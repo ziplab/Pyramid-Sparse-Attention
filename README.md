@@ -40,10 +40,22 @@ pip install -e .
 
 This configuration combines **PSA sparse attention** with **step distillation (TDM)** to achieve maximum inference speedup. By integrating PSA into the student model during the distillation training phase, we achieve:
 
-- **VBench score of 0.826**, surpassing both the 50-step full-attention baseline (0.819) and the 4-step distillation-only baseline (0.818)
-- Operating at **85% sparsity** without any quality loss
+| Metric | Value |
+|--------|-------|
+| **VBench Score** | 0.826 (vs. 50-step full-attention: 0.819, 4-step distillation-only: 0.818) |
+| **Sparsity** | 85% without quality loss |
 
 This demonstrates that PSA is a highly compatible plug-and-play module that compounds effectively with distillation techniques.
+
+**1. Download LoRA Weights**
+
+```bash
+huggingface-cli download GYP666/BLADE cogvideox-5b-psa-lora/pytorch_lora_weights.safetensors --local-dir ./weights
+```
+
+> After downloading, update `lora_path` in [`examples/configs/model_configs.py`](examples/configs/model_configs.py) to point to your weights directory.
+
+**2. Run Inference**
 
 ```bash
 python examples/inference/cogvideo/cogvideo_5b.py \
@@ -65,16 +77,6 @@ For more inference examples and model configurations, see **[examples/README.md]
 ### Qwen2.5-VL Vision Understanding
 
 PSA also supports vision understanding models. For complete Qwen2.5-VL usage guide, see **[qwen2.5-vl-example/README.md](qwen2.5-vl-example/README.md)**.
-
-## Download Weights
-
-### CogVideoX-5B LoRA (4-step)
-
-```bash
-huggingface-cli download GYP666/BLADE cogvideox-5b-psa-lora/pytorch_lora_weights.safetensors --local-dir ./weights
-```
-
-**Note:** After downloading, update the `lora_path` in `examples/configs/model_configs.py` to point to your weights directory.
 
 ## Attention Configuration
 

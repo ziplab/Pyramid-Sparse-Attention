@@ -40,10 +40,22 @@ pip install -e .
 
 此配置将 **PSA 稀疏注意力** 与 **步数蒸馏 (TDM)** 相结合，实现最大推理加速。通过在蒸馏训练阶段将 PSA 集成到学生模型中，我们实现了：
 
-- **VBench 得分 0.826**，超越了 50 步全注意力基线 (0.819) 和 4 步纯蒸馏基线 (0.818)
-- 在 **85% 稀疏度** 下运行，且无任何质量损失
+| 指标 | 数值 |
+|------|------|
+| **VBench 得分** | 0.826（对比 50 步全注意力: 0.819，4 步纯蒸馏: 0.818） |
+| **稀疏度** | 85%，无质量损失 |
 
 这证明了 PSA 是一个高度兼容的即插即用模块，能够与蒸馏技术有效叠加。
+
+**1. 下载 LoRA 权重**
+
+```bash
+huggingface-cli download GYP666/BLADE cogvideox-5b-psa-lora/pytorch_lora_weights.safetensors --local-dir ./weights
+```
+
+> 下载后，请修改 [`examples/configs/model_configs.py`](examples/configs/model_configs.py) 中的 `lora_path` 指向你的权重目录。
+
+**2. 运行推理**
 
 ```bash
 python examples/inference/cogvideo/cogvideo_5b.py \
@@ -65,16 +77,6 @@ python examples/inference/wan21/wan21_1.3b.py \
 ### Qwen2.5-VL 视觉理解
 
 PSA 同样支持视觉理解模型。Qwen2.5-VL 的完整使用指南请参考 **[qwen2.5-vl-example/README.md](qwen2.5-vl-example/README.md)**。
-
-## 下载权重
-
-### CogVideoX-5B LoRA (4步推理)
-
-```bash
-huggingface-cli download GYP666/BLADE cogvideox-5b-psa-lora/pytorch_lora_weights.safetensors --local-dir ./weights
-```
-
-**注意：** 下载后需要修改 `examples/configs/model_configs.py` 中的 `lora_path` 指向你的权重目录。
 
 ## 注意力配置
 
