@@ -115,6 +115,6 @@ If both options are enabled, an error will be raised. Choose one of the followin
 The legacy kernel (`psa_kernel_legacy.py`) supports causal masking. For causal attention use cases (e.g., vision-language models like Qwen2.5-VL), please refer to:
 
 - Kernel: [`kernels/psa_kernel_legacy.py`](kernels/psa_kernel_legacy.py)
-- Example: [`qwenvl2.5-example/`](../../qwenvl2.5-example/) for Qwen2.5-VL integration
+- Example: [`qwen2.5-vl-example/`](../../qwen2.5-vl-example/) for Qwen2.5-VL integration
 
 > **Note**: Causal mask should NOT be used with token rearrangement (`rearrange_method`). After rearrangement, the lower triangular mask no longer represents true causal relationships.

@@ -12,7 +12,7 @@ Official PyTorch implementation of [PSA: Pyramid Sparse Attention for Efficient 
 
 <p align="center"><em>Visual comparison of sparse attention methods at similar sparsity levels (~90%). PSA maintains visual fidelity close to full attention while other methods show noticeable artifacts.</em></p>
 
-> **Note:** This release focuses on **inference-only**. Backward propagation (training) is still under optimization and will be released in a future update. Causal attention is supported via the legacy kernel, see [qwenvl2.5-example/](qwenvl2.5-example/) for details.
+> **Note:** This release focuses on **inference-only**. Backward propagation (training) is still under optimization and will be released in a future update. Causal attention is supported via the legacy kernel, see [qwen2.5-vl-example/](qwen2.5-vl-example/) for details.
 
 ## Installation
 
@@ -57,7 +57,7 @@ For more inference examples and model configurations, see **[examples/README.md]
 
 ### Qwen2.5-VL Vision Understanding
 
-PSA also supports vision understanding models. For complete Qwen2.5-VL usage guide, see **[qwenvl2.5-example/README.md](qwenvl2.5-example/README.md)**.
+PSA also supports vision understanding models. For complete Qwen2.5-VL usage guide, see **[qwen2.5-vl-example/README.md](qwen2.5-vl-example/README.md)**.
 
 ## Download Weights
 

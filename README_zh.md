@@ -12,7 +12,7 @@
 
 <p align="center"><em>相近稀疏度（~90%）下各稀疏注意力方法的视觉对比。PSA 保持了接近全注意力的视觉质量，而其他方法则呈现明显的伪影。</em></p>
 
-> **注意：** 当前版本仅支持**推理**。反向传播（训练）的算子仍在优化中，将在后续版本中发布。因果注意力通过 legacy kernel 支持，详见 [qwenvl2.5-example/](qwenvl2.5-example/)。
+> **注意：** 当前版本仅支持**推理**。反向传播（训练）的算子仍在优化中，将在后续版本中发布。因果注意力通过 legacy kernel 支持，详见 [qwen2.5-vl-example/](qwen2.5-vl-example/)。
 
 ## 安装
 
@@ -57,7 +57,7 @@ python examples/inference/wan21/wan21_1.3b.py \
 
 ### Qwen2.5-VL 视觉理解
 
-PSA 同样支持视觉理解模型。Qwen2.5-VL 的完整使用指南请参考 **[qwenvl2.5-example/README.md](qwenvl2.5-example/README.md)**。
+PSA 同样支持视觉理解模型。Qwen2.5-VL 的完整使用指南请参考 **[qwen2.5-vl-example/README.md](qwen2.5-vl-example/README.md)**。
 
 ## 下载权重
 

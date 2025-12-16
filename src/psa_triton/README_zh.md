@@ -115,6 +115,6 @@ PSA 提供两种 attention kernel 实现：
 Legacy kernel (`psa_kernel_legacy.py`) 支持因果掩码。对于需要因果注意力的场景（如视觉语言模型 Qwen2.5-VL），请参考：
 
 - Kernel: [`kernels/psa_kernel_legacy.py`](kernels/psa_kernel_legacy.py)
-- 示例: [`qwenvl2.5-example/`](../../qwenvl2.5-example/) Qwen2.5-VL 集成
+- 示例: [`qwen2.5-vl-example/`](../../qwen2.5-vl-example/) Qwen2.5-VL 集成
 
 > **注意**：因果掩码不能与 token 重排序（`rearrange_method`）同时使用。重排序后的 token 顺序已改变，下三角掩码不再代表真正的因果关系，会导致结果错误。
