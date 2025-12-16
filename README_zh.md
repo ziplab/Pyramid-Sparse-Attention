@@ -36,13 +36,20 @@ pip install -e .
 
 ## 快速开始
 
-### CogVideoX1.5-5B
+### CogVideoX-5B LoRA (4步快速推理：PSA + 蒸馏)
+
+此配置将 **PSA 稀疏注意力** 与 **步数蒸馏 (TDM)** 相结合，实现最大推理加速。通过在蒸馏训练阶段将 PSA 集成到学生模型中，我们实现了：
+
+- **VBench 得分 0.826**，超越了 50 步全注意力基线 (0.819) 和 4 步纯蒸馏基线 (0.818)
+- 在 **85% 稀疏度** 下运行，且无任何质量损失
+
+这证明了 PSA 是一个高度兼容的即插即用模块，能够与蒸馏技术有效叠加。
 
 ```bash
 python examples/inference/cogvideo/cogvideo_5b.py \
-    --model cogvideo1.5_5b \
-    --prompt "your prompt here" \
-    --use_psa
+    --model cogvideo_5b_lora \
+    --prompt "A garden comes to life as a kaleidoscope of butterflies flutters amidst the blossoms, their delicate wings casting shadows on the petals below. In the background, a grand fountain cascades water with a gentle splendor, its rhythmic sound providing a soothing backdrop. Beneath the cool shade of a mature tree, a solitary wooden chair invites solitude and reflection, its smooth surface worn by the touch of countless visitors seeking a moment of tranquility in nature's embrace." \
+    --use_psa --attention_preset psa_4steps
 ```
 
 ### Wan2.1-1.3B

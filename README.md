@@ -36,13 +36,20 @@ pip install -e .
 
 ## Quick Start
 
-### CogVideoX1.5-5B
+### CogVideoX-5B LoRA (4-step Fast Inference with PSA + Distillation)
+
+This configuration combines **PSA sparse attention** with **step distillation (TDM)** to achieve maximum inference speedup. By integrating PSA into the student model during the distillation training phase, we achieve:
+
+- **VBench score of 0.826**, surpassing both the 50-step full-attention baseline (0.819) and the 4-step distillation-only baseline (0.818)
+- Operating at **85% sparsity** without any quality loss
+
+This demonstrates that PSA is a highly compatible plug-and-play module that compounds effectively with distillation techniques.
 
 ```bash
 python examples/inference/cogvideo/cogvideo_5b.py \
-    --model cogvideo1.5_5b \
-    --prompt "your prompt here" \
-    --use_psa
+    --model cogvideo_5b_lora \
+    --prompt "A garden comes to life as a kaleidoscope of butterflies flutters amidst the blossoms, their delicate wings casting shadows on the petals below. In the background, a grand fountain cascades water with a gentle splendor, its rhythmic sound providing a soothing backdrop. Beneath the cool shade of a mature tree, a solitary wooden chair invites solitude and reflection, its smooth surface worn by the touch of countless visitors seeking a moment of tranquility in nature's embrace." \
+    --use_psa --attention_preset psa_4steps
 ```
 
 ### Wan2.1-1.3B
