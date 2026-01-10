@@ -12,7 +12,7 @@ Official PyTorch implementation of [PSA: Pyramid Sparse Attention for Efficient 
 
 <p align="center"><em>Visual comparison of sparse attention methods at similar sparsity levels (~90%). PSA maintains visual fidelity close to full attention while other methods show noticeable artifacts.</em></p>
 
-> **Note:** The legacy kernel (`psa_kernel_legacy.py`) now supports **backward propagation** for training. Causal attention is also supported via this kernel, see [qwen2.5-vl-example/](qwen2.5-vl-example/) for details.
+> **Note:** The legacy kernel ([`psa_kernel_legacy.py`](src/psa_triton/kernels/psa_kernel_legacy.py)) now supports **backward propagation** for training. Causal attention is also supported via this kernel.
 
 ## Installation
 
