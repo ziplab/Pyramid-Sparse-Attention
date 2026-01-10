@@ -12,7 +12,7 @@
 
 <p align="center"><em>相近稀疏度（~90%）下各稀疏注意力方法的视觉对比。PSA 保持了接近全注意力的视觉质量，而其他方法则呈现明显的伪影。</em></p>
 
-> **注意：** 当前版本仅支持**推理**。反向传播（训练）的算子仍在优化中，将在后续版本中发布。因果注意力通过 legacy kernel 支持，详见 [qwen2.5-vl-example/](qwen2.5-vl-example/)。
+> **注意：** Legacy kernel (`psa_kernel_legacy.py`) 现已支持**反向传播**，可用于训练。因果注意力也通过此 kernel 支持，详见 [qwen2.5-vl-example/](qwen2.5-vl-example/)。
 
 ## 安装
 
