@@ -24,7 +24,7 @@ class AttentionConfig:
     """Runtime configuration for pyramid adaptive sparse attention."""
 
     text_length: int = 512
-    query_block: int = 32
+    query_block: int = 128
     warmup_steps: int = 0
 
     mask_ratios: Dict[int, Tuple[float, float]] = field(
