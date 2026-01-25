@@ -32,6 +32,11 @@ config = PSAConfig(
     block_n=64,           # Key/Value block 大小 (new_mask_type: 128/64/32)
     tile_n=32,            # K/V 处理的 tile 大小
 
+    # 随机采样 pooling（用于生成 mask）
+    # 若为 None，默认分别为 block_m//4 和 block_n//4。
+    num_keep_m=None,      # 每个 Q block 采样的 token 数
+    num_keep_n=None,      # 每个 K block 采样的 token 数
+
     # Mask ratio 配置
     mask_ratios={
         1: (0.0, 0.1),    # 10% full attention
@@ -62,6 +67,8 @@ out = psa(q, k, v)
 | `block_m` | int | 128 | Query block 大小 |
 | `block_n` | int | 64 | Key/Value block 大小 (new_mask_type: 128/64/32, old_mask_type: 固定 128) |
 | `tile_n` | int | 32 | K/V 处理的 tile 大小 |
+| `num_keep_m` | int/None | None | pooling 生成 mask 时每个 Q block 的采样数（None -> `block_m//4`） |
+| `num_keep_n` | int/None | None | pooling 生成 mask 时每个 K block 的采样数（None -> `block_n//4`） |
 | `mask_ratios` | dict | 见上 | 各 pyramid level 的稀疏度分布 |
 | `mask_mode` | str | `'topk'` | `'topk'` (固定配额) 或 `'thresholdbound'` (动态分配) |
 | `attn_impl` | str | `'new_mask_type'` | 内核实现: `'new_mask_type'`（默认）或 `'old_mask_type'` |

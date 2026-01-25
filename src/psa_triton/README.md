@@ -32,6 +32,11 @@ config = PSAConfig(
     block_n=64,           # Key/Value block size (new_mask_type: 128/64/32)
     tile_n=32,            # Tile size for K/V processing
 
+    # Random-sampling pooling (mask generation)
+    # If None, defaults to block_m//4 and block_n//4 respectively.
+    num_keep_m=None,      # Number of sampled Q tokens per block
+    num_keep_n=None,      # Number of sampled K tokens per block
+
     # Mask ratio configuration
     mask_ratios={
         1: (0.0, 0.1),    # 10% full attention
@@ -62,6 +67,8 @@ out = psa(q, k, v)
 | `block_m` | int | 128 | Query block size |
 | `block_n` | int | 64 | Key/Value block size (new_mask_type: 128/64/32, old_mask_type: fixed 128) |
 | `tile_n` | int | 32 | Tile size for K/V processing |
+| `num_keep_m` | int/None | None | Sampled Q tokens per block for pooling mask generation (None -> `block_m//4`) |
+| `num_keep_n` | int/None | None | Sampled K tokens per block for pooling mask generation (None -> `block_n//4`) |
 | `mask_ratios` | dict | See above | Sparsity distribution per pyramid level |
 | `mask_mode` | str | `'topk'` | `'topk'` (fixed quota) or `'thresholdbound'` (dynamic) |
 | `attn_impl` | str | `'new_mask_type'` | Kernel implementation: `'new_mask_type'` (default) or `'old_mask_type'` |

@@ -108,6 +108,35 @@ MODEL_CONFIGS: Dict[str, Dict[str, Any]] = {
             "in the background, walking backwards"
         ),
     },
+
+    "wan21_1.3b_lora_4steps": {
+        "model_id": "Wan-AI/Wan2.1-T2V-1.3B-Diffusers",
+        "model_name": "Wan2.1_1.3b_4steps",
+        "dtype": "bfloat16",
+        "vae_dtype": "float32",  # VAE uses float32
+        "video_shape": [832, 480, 81],  # [width, height, num_frames] (480P)
+        "num_inference_steps": 4,
+        "guidance_scale": 1.0,  # Distilled 4-step inference uses CFG=1.0
+        "fps": 16,
+        "flow_shift": 3.0,  # 3.0 for 480P
+        # LoRA specific configurations
+        "use_lora": True,
+        # Matches: huggingface-cli download ... --local-dir ./weights
+        "lora_path": str(PROJECT_ROOT / "weights" / "wan21-1.3b-psa-lora"),
+        "lora_weight": "pytorch_lora_weights.safetensors",
+        "default_prompt": (
+            "A cat and a dog baking a cake together in a kitchen. The cat is carefully measuring flour, "
+            "while the dog is stirring the batter with a wooden spoon. The kitchen is cozy, with sunlight "
+            "streaming through the window."
+        ),
+        "default_negative_prompt": (
+            "Bright tones, overexposed, static, blurred details, subtitles, style, works, paintings, "
+            "images, static, overall gray, worst quality, low quality, JPEG compression residue, ugly, "
+            "incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, "
+            "misshapen limbs, fused fingers, still picture, messy background, three legs, many people "
+            "in the background, walking backwards"
+        ),
+    },
     
     "wan21_14b": {
         "model_id": "Wan-AI/Wan2.1-T2V-14B-Diffusers",

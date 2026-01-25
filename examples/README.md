@@ -33,10 +33,20 @@ python examples/inference/cogvideo/cogvideo_5b.py \
 
 ## Wan2.1 Series
 
+### Wan2.1-1.3B LoRA (4-step Fast Inference with PSA)
+
+```bash
+python examples/inference/wan21/wan21_1.3b.py \
+    --model wan21_1.3b_lora_4steps \
+    --prompt "A vintage school bus slowly turning a corner on a dusty rural road at sunset. The bus is adorned with colorful retro decals and has a worn wooden dashboard. Children with backpacks and school bags are inside, some playing and others reading books. The bus driver, a stern but kind-looking man, is behind the wheel, gesturing confidently as he navigates the curve. The sun sets behind a cluster of old oak trees, casting warm golden hues over the landscape. The corner is tight, with the bus making a slight sway as it turns. The children's expressions range from curious to excited, and the bus driver's face shows determination and satisfaction. The blurred background features the rolling hills and scattered farmhouses. Warm, nostalgic cinematography style. Low-angle shot from the side, focusing on the driver and the turning bus." \
+    --use_psa --attention_preset psa_4steps --no_warmup
+```
+
 ### Wan2.1-1.3B
 
 ```bash
 python examples/inference/wan21/wan21_1.3b.py \
+    --model wan21_1.3b \
     --prompt "A vintage school bus slowly turning a corner on a dusty rural road at sunset. The bus is adorned with colorful retro decals and has a worn wooden dashboard. Children with backpacks and school bags are inside, some playing and others reading books. The bus driver, a stern but kind-looking man, is behind the wheel, gesturing confidently as he navigates the curve. The sun sets behind a cluster of old oak trees, casting warm golden hues over the landscape. The corner is tight, with the bus making a slight sway as it turns. The children's expressions range from curious to excited, and the bus driver's face shows determination and satisfaction. The blurred background features the rolling hills and scattered farmhouses. Warm, nostalgic cinematography style. Low-angle shot from the side, focusing on the driver and the turning bus." \
     --use_psa --no_warmup
 ```
@@ -102,6 +112,9 @@ python examples/inference/cogvideo/cogvideo_5b.py \
 
 | Option | Description |
 |--------|-------------|
+| `--model` | Model config (Wan2.1-1.3B): `wan21_1.3b`, `wan21_1.3b_lora_4steps` |
+| `--lora_path` | Override LoRA path from config (Wan2.1-1.3B) |
+| `--lora_weight` | Override LoRA weight name from config (Wan2.1-1.3B, dir input only) |
 | `--width` | Video width |
 | `--height` | Video height |
 | `--num_frames` | Number of frames |
@@ -115,6 +128,7 @@ python examples/inference/cogvideo/cogvideo_5b.py \
 | cogvideo1.5_5b | 1360x768 | 81 | 50 | 6.0 |
 | cogvideo_5b_lora | 720x480 | 49 | 4 | 1.0 |
 | wan21_1.3b | 1280x720 | 69 | 50 | 5.0 |
+| wan21_1.3b_lora_4steps | 832x480 | 81 | 4 | 1.0 |
 | wan21_14b | 1280x720 | 69 | 50 | 5.0 |
 | wan22_5b | 1280x704 | 121 | 50 | 5.0 |
 | wan22_a14b | 1280x768 | 69 | 40 | 4.0 |

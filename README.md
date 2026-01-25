@@ -64,12 +64,23 @@ python examples/inference/cogvideo/cogvideo_5b.py \
     --use_psa --attention_preset psa_4steps
 ```
 
-### Wan2.1-1.3B
+### Wan2.1-1.3B LoRA (4-step Fast Inference with PSA)
+
+This configuration enables **4-step inference** with ~**90% sparsity** on Wan2.1-1.3B using a distilled LoRA.
+
+**1. Download LoRA Weights**
+
+```bash
+huggingface-cli download GYP666/BLADE wan21-1.3b-psa-lora/pytorch_lora_weights.safetensors --local-dir ./weights
+```
+
+**2. Run Inference**
 
 ```bash
 python examples/inference/wan21/wan21_1.3b.py \
+    --model wan21_1.3b_lora_4steps \
     --prompt "your prompt here" \
-    --use_psa --no_warmup
+    --use_psa --attention_preset psa_4steps --no_warmup
 ```
 
 For more inference examples and model configurations, see **[examples/README.md](examples/README.md)**.

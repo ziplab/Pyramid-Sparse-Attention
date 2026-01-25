@@ -44,6 +44,10 @@ class PSAConfig:
     block_m: int = 128          # Query block size
     block_n: int = 64           # Key/Value block size (new_mask_type: 128/64/32, old_mask_type: fixed 128)
     tile_n: int = 32            # Tile size for K/V processing
+    # Random-sampling pooling configuration (mask generation).
+    # If left as None, an implementation-defined default will be used.
+    num_keep_m: Optional[int] = None  # Number of sampled Q tokens per block
+    num_keep_n: Optional[int] = None  # Number of sampled K tokens per block
 
     # Mask ratio configuration - controls sparsity distribution
     # Key: pyramid level (1=full, 2/4/8=pooled, 0=skip)
@@ -100,6 +104,18 @@ class PSAConfig:
                 raise ValueError(
                     f"attn_impl='new_mask_type' only supports block_n in [128, 64, 32].\n"
                     f"Got block_n={self.block_n}."
+                )
+
+        # Validate random-sampling pooling config
+        if self.num_keep_m is not None:
+            if self.num_keep_m <= 0 or self.num_keep_m > self.block_m:
+                raise ValueError(
+                    f"num_keep_m must be in [1, block_m]. Got num_keep_m={self.num_keep_m}, block_m={self.block_m}."
+                )
+        if self.num_keep_n is not None:
+            if self.num_keep_n <= 0 or self.num_keep_n > self.block_n:
+                raise ValueError(
+                    f"num_keep_n must be in [1, block_n]. Got num_keep_n={self.num_keep_n}, block_n={self.block_n}."
                 )
 
 
@@ -188,8 +204,10 @@ def _compute_attention_pooling(
         pooling: Block-level attention scores
         sim_mask: Similarity-based pooling constraint (or None)
     """
-    num_keep_m = config.block_m // 4
-    num_keep_n = config.block_n // 4
+    # Allow overriding the random-sampling budget via PSAConfig.
+    # Keep the historical default behavior when unset.
+    num_keep_m = config.num_keep_m if config.num_keep_m is not None else max(1, config.block_m // 4)
+    num_keep_n = config.num_keep_n if config.num_keep_n is not None else max(1, config.block_n // 4)
     
     # Pad to block size
     q_ = _pad_to_multiple(q, config.block_m)

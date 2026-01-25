@@ -12,6 +12,9 @@ Usage:
 
     # Custom video resolution
     python wan21_1.3b.py --prompt "..." --width 1280 --height 768 --num_frames 69
+
+    # Using LoRA model (4-step distillation)
+    python wan21_1.3b.py --model wan21_1.3b_lora_4steps --prompt "..." --use_psa
 """
 
 import os
@@ -78,6 +81,24 @@ def setup_pipeline(config: dict, device: str = "cuda"):
         cache_dir=cache_dir
     )
     pipe.scheduler = scheduler
+
+    # Load LoRA weights if configured
+    if config.get("use_lora", False):
+        lora_path = Path(config["lora_path"])
+        lora_weight = config.get("lora_weight", "pytorch_lora_weights.safetensors")
+
+        if lora_path.is_dir():
+            weight_file = lora_path / lora_weight
+            if not weight_file.exists():
+                raise FileNotFoundError(f"LoRA weight file not found: {weight_file}")
+            pipe.load_lora_weights(str(lora_path), weight_name=lora_weight)
+            print(f"✅ Loaded LoRA weights from {weight_file}")
+        else:
+            if not lora_path.exists():
+                raise FileNotFoundError(f"LoRA weight file not found: {lora_path}")
+            pipe.load_lora_weights(str(lora_path))
+            print(f"✅ Loaded LoRA weights from {lora_path}")
+
     pipe.to(device)
 
     print(f"✅ Pipeline loaded on {device} (dtype={config['dtype']})")
@@ -166,10 +187,19 @@ def main():
     parser.add_argument("--negative_prompt", type=str, help="Negative prompt (optional)")
 
     # Model options
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="wan21_1.3b",
+        choices=["wan21_1.3b", "wan21_1.3b_lora_4steps"],
+        help="Model configuration to use (default: wan21_1.3b)",
+    )
     parser.add_argument("--use_psa", action="store_true", help="Enable Pyramid Sparse Attention")
     parser.add_argument("--attention_preset", type=str, default=None,
                        help="PSA preset name (default: from attention_config.yaml)")
     parser.add_argument("--num_inference_steps", type=int, help="Override default inference steps")
+    parser.add_argument("--lora_path", type=str, help="Override LoRA path from config")
+    parser.add_argument("--lora_weight", type=str, help="Override LoRA weight name from config (dir input only)")
 
     # Video options
     parser.add_argument("--width", type=int, help="Video width (default: 832)")
@@ -197,9 +227,15 @@ def main():
         parser.error("Either --prompt or --prompt_file must be specified")
 
     # Load configuration
-    config = get_model_config("wan21_1.3b")
+    config = get_model_config(args.model)
     if args.num_inference_steps:
         config["num_inference_steps"] = args.num_inference_steps
+    if args.lora_path:
+        config["lora_path"] = args.lora_path
+        config["use_lora"] = True
+    if args.lora_weight:
+        config["lora_weight"] = args.lora_weight
+        config["use_lora"] = True
 
     # Override video shape if specified
     video_shape = config["video_shape"].copy()
@@ -223,7 +259,7 @@ def main():
     # Create output directory
     output_dir = create_output_dir(
         args.output_dir,
-        "wan21_1.3b",
+        args.model,
         use_timestamp=not args.no_timestamp
     )
     print(f"📁 Output directory: {output_dir}")
